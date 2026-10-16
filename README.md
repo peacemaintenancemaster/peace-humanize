@@ -43,11 +43,11 @@ git clone https://github.com/peacemaintenancemaster/peace-humanize.git
 
 Claude Code라면 `/peace-humanize 글...`로 직접 불러도 돼요.
 
-### 구어도 고르기 (0~100)
+### 구어체 정도 고르기 (0~100)
 
-윤문이나 새로 쓰기를 시작하면 Claude가 구어도를 묻습니다. Claude Code에서는 선택 카드가 뜹니다. 원문 톤에 가장 가까운 값이 추천으로 맨 위에 와요.
+윤문이나 새로 쓰기를 시작하면 Claude가 구어체 정도를 묻습니다. Claude Code에서는 선택 카드가 뜹니다. 원문 톤에 가장 가까운 값이 추천으로 맨 위에 와요.
 
-| 구어도 | 이런 글 | 문체 |
+| 구어체 정도 | 이런 글 | 문체 |
 |---|---|---|
 | 0 | 공문·보도자료·보고서 | 해라체나 합쇼체로 통일, 요체·감탄 없음 |
 | 30 | 칼럼·리포트·격식 뉴스레터 | 합쇼체 중심, 질문 한두 개 |
@@ -69,7 +69,7 @@ python skills/peace-humanize/scripts/house_check.py 글.txt
 python skills/peace-humanize/scripts/house_check.py 고친글.txt --base 원문.txt --level 70
 ```
 
-항목마다 PASS/FAIL이 나옵니다. 위반이 두 종류 이상이면 "고친다"로 판정해요. `--base`를 주면 변경률과 숫자 누락까지 봅니다. `--level`을 주면 그 구어도 조건으로 재고요.
+항목마다 PASS/FAIL이 나옵니다. 위반이 두 종류 이상이면 "고친다"로 판정해요. `--base`를 주면 변경률과 숫자 누락까지 봅니다. `--level`을 주면 그 구어체 정도 조건으로 재고요.
 
 종결어미 분류는 휴리스틱이라 가끔 틀리는데요. 이상한 결과가 나오면 이슈로 알려주세요.
 
@@ -80,7 +80,7 @@ skills/peace-humanize/
 ├── SKILL.md                    작업 순서와 철칙
 ├── references/
 │   ├── house-rules.md          하우스 룰 (우선)
-│   ├── register-levels.md      구어도 0~100 레벨 조건
+│   ├── register-levels.md      구어체 정도 0~100 레벨 조건
 │   ├── research-notes.md       한국어 연구로 더한 규칙과 출처
 │   └── quick-rules.md          im-not-ai AI 티 룰북
 └── scripts/

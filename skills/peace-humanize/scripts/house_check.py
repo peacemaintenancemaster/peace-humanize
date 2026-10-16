@@ -8,10 +8,10 @@
   python house_check.py - < 글.txt          (stdin)
   python house_check.py 글.txt --json       (기계용 출력)
 
---level N  구어도 목표(0=공문 … 100=반말 구어). 주면 레벨별 종결 조건과
-           목표 구어도(±15)를 함께 본다. 안 주면 하우스 룰(50 기준)로 잰다.
+--level N  구어체 정도 목표(0=공문 … 100=반말 구어). 주면 레벨별 종결 조건과
+           목표 구어체 정도(±15)를 함께 본다. 안 주면 하우스 룰(50 기준)로 잰다.
 
-종결어미 분류, 구어도 추정, 쉼표 탐지는 휴리스틱이라 오탐이 있을 수 있다.
+종결어미 분류, 구어체 정도 추정, 쉼표 탐지는 휴리스틱이라 오탐이 있을 수 있다.
 """
 import argparse
 import difflib
@@ -259,9 +259,13 @@ def analyze(raw, level=None):
     counted = [e for e in endings if e != "명사형·기타"] or endings
     cdist = Counter(counted)
     cn = len(counted) or 1
+    short = len(counted) < 4  # 문장이 너무 적으면 종결 배분은 재지 않는다
+    if short:
+        warnings.append("문장이 4개 미만이라 종결 배분·사람 글 표현은 재지 않았다")
     top_type, top_n = cdist.most_common(1)[0] if cdist else ("-", 0)
     top_ratio = top_n / cn
-    checks.append(("최다 종결 비율", top_ratio <= cfg["max_top"], f"{top_type} {top_ratio:.0%}",
+    if not short:
+        checks.append(("최다 종결 비율", top_ratio <= cfg["max_top"], f"{top_type} {top_ratio:.0%}",
                    f"{cfg['max_top']:.0%} 이하"))
 
     run, worst, worst_type = 1, 1, counted[0] if counted else "-"
@@ -269,12 +273,15 @@ def analyze(raw, level=None):
         run = run + 1 if a == b else 1
         if run > worst:
             worst, worst_type = run, b
-    if cfg["run3"]:
+    if short:
+        pass
+    elif cfg["run3"]:
         checks.append(("같은 종결 최장 연속", worst < 3, f"{worst}문장 ({worst_type})", "3연속 금지"))
     elif worst >= 4:
         warnings.append(f"같은 종결이 {worst}문장 연속({worst_type})")
 
-    checks.append(("종결 유형 수", len(cdist) >= cfg["min_types"], len(cdist), f"{cfg['min_types']}가지 이상"))
+    if not short:
+        checks.append(("종결 유형 수", len(cdist) >= cfg["min_types"], len(cdist), f"{cfg['min_types']}가지 이상"))
 
     present = dist.get("현재형 ~한다", 0)
     if cfg["present_max"] is not None:
@@ -294,9 +301,9 @@ def analyze(raw, level=None):
         if c:
             markers[p] = c
     need = cfg["markers_min"] if level is not None else (1 if is_yo else 0)
-    if need:
+    if need and not short:
         checks.append(("사람 글 표현", len(markers) >= need, markers or 0, f"{need}개 이상"))
-    if cfg.get("eoyo_mono") and is_yo:
+    if cfg.get("eoyo_mono") and is_yo and not short:
         polite = sum(dist[t] for t in YO | HAPNIDA)
         eoyo = dist.get("~어요", 0) + dist.get("~예요", 0)
         mono = eoyo / polite if polite else 0
@@ -304,7 +311,7 @@ def analyze(raw, level=None):
 
     est = estimate_level(endings, text, n)
     if level is not None and est is not None:
-        checks.append(("구어도", abs(est - level) <= 15, f"약 {est}", f"목표 {level} ±15"))
+        checks.append(("구어체 정도", abs(est - level) <= 15, f"약 {est}", f"목표 {level} ±15"))
 
     # 경고 (WARN)
     lengths = [len(s) for s in sents]
@@ -378,7 +385,7 @@ def main():
     ap = argparse.ArgumentParser(description="peace-humanize 하우스 룰 측정기")
     ap.add_argument("file")
     ap.add_argument("--base", help="원문 파일. 주면 변경률과 숫자 보존을 함께 본다")
-    ap.add_argument("--level", type=int, help="구어도 목표 0~100")
+    ap.add_argument("--level", type=int, help="구어체 정도 목표 0~100")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
     try:
@@ -398,7 +405,7 @@ def main():
         return
 
     est = report["estimated_level"]
-    head = f"문장 {report['sentences']}개 | 구어도 추정 {est if est is not None else '-'}"
+    head = f"문장 {report['sentences']}개 | 구어체 정도 추정 {est if est is not None else '-'}"
     if report["target_level"] is not None:
         head += f" | 목표 {report['target_level']} (기준점 {report['rule_level']} 조건 적용)"
     print(head)
