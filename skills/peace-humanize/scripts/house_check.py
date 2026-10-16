@@ -68,6 +68,11 @@ NATIVE_CONTEXT = {
     "구분": r"가르는|가른다|갈라요",
     "수정": r"손보(?:고|는|면|세요|기)|손봐|손봤",
 }
+# 자체 규칙 12장: 트렌드로 여는 문장과 반전 공식
+TREND_HOOK = re.compile(
+    r"요즘\s*.{0,20}(?:없는|안\s*[가-힣]{1,3}는)\s*.{0,15}(?:찾기|보기)(?:가|는)?\s*(?:더\s*)?(?:힘|어렵)"
+    r"|바야흐로|의\s*시대(?:가|입니다|예요|다)")
+TURN_WORDS = re.compile(r"(?<![가-힣])(?:하지만|그러나|오히려)(?![가-힣])")
 NOMINALIZATION = re.compile(r"[가-힣]{2,}(?:적(?=인|으로|이다|\s)|화(?=하|되|를|가|의|에|\s))")
 TRIPLE_LIST = re.compile(
     r"[가-힣A-Za-z0-9]+(?:,\s*|·)[가-힣A-Za-z0-9]+(?:,\s*|·|,?\s*그리고\s+|\s*및\s*)[가-힣A-Za-z0-9]+")
@@ -248,7 +253,7 @@ def repeated_words(text):
     return {w: c for w, c in stems.most_common(5) if c >= 5}
 
 
-def analyze(raw, level=None):
+def analyze(raw, level=None, editing=False):
     text = clean(raw)
     sents = sentences(text)
     n = len(sents) or 1
@@ -307,9 +312,9 @@ def analyze(raw, level=None):
     counted = [e for e in pool if e != "명사형·기타"] or pool
     cdist = Counter(counted)
     cn = len(counted) or 1
-    short = len(counted) < 4  # 문장이 너무 적으면 종결 배분은 재지 않는다
+    short = len(counted) < 6  # 짧은 글에 비율 규칙을 걸면 문장마다 어미를 돌려 쓰게 된다
     if short:
-        warnings.append("문장이 4개 미만이라 종결 배분·사람 글 표현은 재지 않았다")
+        warnings.append("다섯 문장 이하라 종결 비율 규칙은 재지 않았다(끝소리 규칙만 적용)")
     top_type, top_n = cdist.most_common(1)[0] if cdist else ("-", 0)
     top_ratio = top_n / cn
     if not short:
@@ -367,7 +372,8 @@ def analyze(raw, level=None):
         c = count(p, text)
         if c:
             markers[p] = c
-    need = cfg["markers_min"] if level is not None else (1 if is_yo else 0)
+    # 사람 글 표현은 윤문(--base)할 때만 요구한다. 새로 쓸 때 개수를 채우면 오히려 티가 난다
+    need = 0 if not editing else (cfg["markers_min"] if level is not None else (1 if is_yo else 0))
     if need and not short:
         checks.append(("사람 글 표현", len(markers) >= need, markers or 0, f"{need}개 이상"))
     if cfg.get("eoyo_mono") and is_yo and not short:
@@ -395,6 +401,18 @@ def analyze(raw, level=None):
     triples = TRIPLE_LIST.findall(text)
     if triples:
         warnings.append(f"셋씩 나열 의심 {len(triples)}곳: " + " / ".join(triples[:3]))
+    for line in text.split("\n"):
+        ls = sentences(line)
+        if len(ls) >= 2 and ending(ls[-1]) == "~고요":
+            warnings.append(f"문단이 '~고요'로 끝난다: {ls[-1][:30]}")
+    lone = [sn for sn, e in zip(sents, raw_endings) if e == "~는데요" and len(sn) < 20]
+    if lone:
+        warnings.append(f"짧은 단독 '~는데요.' 문장 {len(lone)}개: {lone[0]}")
+    hook = TREND_HOOK.search(text)
+    if hook:
+        warnings.append(f"트렌드로 여는 문장: {hook.group(0)}")
+    if (hook or (sents and sents[0].startswith("요즘"))) and TURN_WORDS.search(text):
+        warnings.append("'요즘 다들 → 하지만·오히려' 반전 공식 의심. 뼈대를 다시 본다")
     adv = ADVERBIAL_COMMA.findall(text)
     if adv:
         warnings.append(f"부사격 조사 뒤 쉼표 {len(adv)}곳")
@@ -466,7 +484,7 @@ def main():
         ap.error("--level은 0~100")
 
     raw = read(args.file)
-    report = analyze(raw, args.level)
+    report = analyze(raw, args.level, editing=bool(args.base))
     if args.base:
         report["compare"] = compare(read(args.base), raw)
 
