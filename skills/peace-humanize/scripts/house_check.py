@@ -423,13 +423,16 @@ def analyze(raw, level=None, editing=False):
 
     # 경고 (WARN)
     lengths = [len(s) for s in sents]
-    if len(lengths) >= 4:
+    # 길이 경고는 여섯 문장 이상에만. 짧은 글에 걸면 경고를 없애려고 문장을 덧붙이게 된다
+    if len(lengths) >= 6:
         mean = statistics.mean(lengths)
         cv = statistics.pstdev(lengths) / mean if mean else 0
         if cv < 0.35:
-            warnings.append(f"문장 길이가 고르다(변동계수 {cv:.2f}). 짧은 문장과 긴 문장을 섞어라")
+            warnings.append(f"문장 길이가 고르다(변동계수 {cv:.2f}). 있는 문장을 쪼개거나 합쳐서 섞는다(새 문장 추가 금지)")
         if not any(l <= 15 for l in lengths):
-            warnings.append("15자 이하 짧은 문장이 하나도 없다")
+            warnings.append("15자 이하 짧은 문장이 하나도 없다. 있는 문장을 쪼개서 만든다(새 문장 추가 금지)")
+    if len(sents) >= 3 and len(sents[-1]) <= 15:
+        warnings.append(f"마지막 문장이 15자 이하 한 줄이다: {sents[-1]} (요점을 다시 찍는 경구형 마무리면 뺀다)")
     triples = TRIPLE_LIST.findall(text)
     if triples:
         warnings.append(f"셋씩 나열 의심 {len(triples)}곳: " + " / ".join(triples[:3]))
