@@ -1,96 +1,59 @@
 # peace-humanize
 
-AI가 쓴 한글 글을 사람이 쓴 것처럼 고쳐 주는 Claude 스킬이에요. 카드뉴스랑 마케팅 블로그 글을 다듬으려고 만들었습니다.
+ChatGPT나 Claude로 초안을 쓰면 티가 나잖아요. 문장마다 찍힌 쉼표, "다만"으로 시작하는 문장, 끝까지 "~해요"만 이어지는 말투 같은 거요. 팀에서 카드뉴스랑 블로그 글을 고칠 때마다 같은 걸 손보고 있길래 아예 Claude 스킬로 만들었습니다.
 
-규칙은 세 갈래예요.
+고치면 이런 식이에요.
 
-- **하우스 룰**: 사람 카드뉴스 120세트와 AI 블로그 120세트를 비교해서 둘을 실제로 가르는 것만 남겼어요. 금지어, 쉼표 비율, 종결어미 배분, 요체 리듬 같은 것들이요.
-- **연구 보강**: KatFish(ACL 2025) 같은 한국어 AI 글 연구에서 수치로 확인된 규칙을 더했고요. 쉼표 습관이 대표적입니다. 출처는 `research-notes.md`에 있어요.
-- **AI 티 룰북**: [im-not-ai](https://github.com/epoko77-ai/im-not-ai)에서 가져온 룰북입니다. 번역투나 AI 특유의 관용구를 잡아요.
+> 숏폼은 단순히 짧은 영상이 아니라, 브랜드와 고객을 잇는 핵심 채널이에요. 결론적으로 숏폼은 마케팅의 새로운 패러다임이라고 할 수 있어요.
 
-서로 부딪히면 하우스 룰이 이기는 거죠. 고친 뒤에는 측정 스크립트로 전후를 숫자로 비교하고요.
+> 숏폼은 짧은 영상으로 끝나지 않습니다. 브랜드가 고객을 만나는 통로가 됐거든요.
+
+내용은 그대로 두고 말투만 바꿉니다. 숫자나 이름은 건드리지 않아요.
+
+## 기준은 어디서 왔나
+
+사람이 만든 카드뉴스 120세트와 AI 비중이 높은 블로그 글 120세트를 나란히 놓고 비교했어요. 그중 둘을 실제로 가르는 것만 남겼습니다. 사람 글은 쉼표가 들어간 문장이 열에 셋을 잘 안 넘거든요. ACL 2025에 실린 한국어 AI 글 연구(KatFish)도 비슷한 숫자를 냈습니다. 사람 글이 26%, AI 글이 61%였어요.
+
+번역투나 AI식 관용구를 잡는 규칙은 [im-not-ai](https://github.com/epoko77-ai/im-not-ai)에서 가져왔어요. 우리 기준과 부딪히면 우리 걸 따릅니다.
 
 ## 설치
-
-### Claude Code · Codex · Cursor 등 (추천)
 
 ```bash
 npx skills add peacemaintenancemaster/peace-humanize
 ```
 
-### 직접 복사
+Claude Code든 Codex든 Cursor든 알아서 깔려요. 손으로 넣고 싶으면 저장소를 받아서 `skills/peace-humanize` 폴더를 `~/.claude/skills/` 밑에 두면 됩니다. 한 프로젝트에서만 쓸 거면 그 프로젝트의 `.claude/skills/`에 넣으세요.
 
-```bash
-git clone https://github.com/peacemaintenancemaster/peace-humanize.git
-```
-
-`skills/peace-humanize` 폴더를 아래 위치에 넣으면 끝입니다.
-
-- 모든 프로젝트에서 쓰기: `~/.claude/skills/peace-humanize`
-- 특정 프로젝트에서만: `<프로젝트>/.claude/skills/peace-humanize`
-
-### claude.ai (웹·앱 채팅)
-
-`skills/peace-humanize` 폴더를 zip으로 묶어서 설정 → 기능 → 스킬에서 업로드하세요.
+claude.ai 채팅에서 쓰려면 같은 폴더를 zip으로 묶어서 설정의 스킬 메뉴에 올리면 돼요.
 
 ## 쓰는 법
 
-글을 붙여넣고 이렇게 말하면 됩니다.
+글을 붙여넣고 "AI 티 없애줘"라고 하면 끝입니다. "이 글 AI 같아?"라고 물으면 고치지 않고 점검만 해요. 재료를 주면서 카드뉴스 문구를 써 달라고 하면 처음부터 써 주고요.
 
-- "이거 AI 티 없애줘" → 윤문
-- "이 글 AI 같아?" → 점검만 (고치지 않음)
-- "이 재료로 카드뉴스 문구 사람처럼 써줘" → 새로 쓰기
+고치기 전에 말투를 얼마나 풀지 먼저 물어봅니다. 셋 다 존댓말이에요.
 
-Claude Code라면 `/peace-humanize 글...`로 직접 불러도 돼요.
+- 0: 보도자료나 공지처럼 단정하게. "~했습니다", "~입니다"
+- 50: 블로그나 카드뉴스. "~습니다"와 "~어요"를 섞어서
+- 100: 인스타 캡션처럼 편하게. "~거든요", "~잖아요"
 
-### 구어체 정도 고르기 (0~100)
+해라체로 쓴 칼럼이라면 "원문 톤 유지"를 고르세요. 문체는 그대로 두고 AI 티만 뺍니다. 25나 75 같은 중간 값도 돼요.
 
-윤문이나 새로 쓰기를 시작하면 Claude가 구어체 정도를 묻습니다. Claude Code에서는 선택 카드가 뜹니다. 원문 톤에 가장 가까운 값이 추천으로 맨 위에 와요.
+## 측정 스크립트
 
-세 구간 모두 존댓말이에요.
-
-| 구어체 정도 | 이런 글 | 문체 |
-|---|---|---|
-| 0 | 공지·보도자료·리포트 | 합쇼체 중심(~했습니다·~입니다) |
-| 50 | 블로그·카드뉴스 | 합쇼체와 요체를 섞은 실측 리듬 |
-| 100 | 인스타 캡션·캐주얼 뉴스레터 | 요체 중심, ~거든요·~잖아요, 축약형 |
-
-카드에는 "원문 톤 유지"도 있습니다. 해라체 칼럼처럼 존댓말이 아닌 글은 이걸 고르면 문체는 그대로 두고 AI 티만 빼요. 25·75 같은 숫자는 Other에 적으면 되고요. 처음부터 "블로그 느낌으로 바꿔줘"처럼 말하면 묻지 않고 바로 작업하죠.
-
-## 측정 스크립트만 따로 쓰기
-
-파이썬 3만 있으면 됩니다. 외부 패키지는 없어요.
+고친 글이 기준을 지켰는지는 스크립트로 봅니다. 파이썬만 깔려 있으면 돼요.
 
 ```bash
-python skills/peace-humanize/scripts/house_check.py 글.txt
+python skills/peace-humanize/scripts/house_check.py 고친글.txt --base 원문.txt --level 50
 ```
 
-```bash
-python skills/peace-humanize/scripts/house_check.py 고친글.txt --base 원문.txt --level 100
-```
+금지어나 쉼표 비율 같은 항목마다 PASS와 FAIL이 찍힙니다. `--base`로 원문을 주면 숫자가 빠졌는지도 봐 줘요.
 
-항목마다 PASS/FAIL이 나옵니다. 위반이 두 종류 이상이면 "고친다"로 판정해요. `--base`를 주면 변경률과 숫자 누락까지 봅니다. `--level`을 주면 그 구어체 정도 조건으로 재고요.
+## 아직 부족한 점
 
-종결어미 분류는 휴리스틱이라 가끔 틀리는데요. 이상한 결과가 나오면 이슈로 알려주세요.
+종결어미를 형태소 분석기 없이 끝 글자로만 나눕니다. 그래서 가끔 틀려요. "지수" 같은 금지 이름도 문맥에 따라 잘못 잡힐 수 있고요. 이상한 결과가 나오면 이슈로 남겨 주세요.
 
-## 구성
-
-```
-skills/peace-humanize/
-├── SKILL.md                    작업 순서와 철칙
-├── references/
-│   ├── house-rules.md          하우스 룰 (우선)
-│   ├── register-levels.md      구어체 정도 0·50·100 조건
-│   ├── research-notes.md       한국어 연구로 더한 규칙과 출처
-│   └── quick-rules.md          im-not-ai AI 티 룰북
-└── scripts/
-    └── house_check.py          하우스 룰 측정기
-```
-
-## 규칙 고치기
-
-하우스 룰은 `references/house-rules.md`에 있어요. 고친 뒤 스크립트 기준도 바꿔야 하면 `house_check.py` 위쪽의 `BANNED_WORDS`, `LIMITED_WORDS`, `BANNED_PHRASES`, `HUMAN_MARKERS`를 같이 수정하세요.
+기준을 바꾸고 싶으면 `skills/peace-humanize/references/house-rules.md`를 고치면 됩니다. 스크립트 판정까지 맞추려면 `house_check.py` 맨 위의 단어 목록도 같이 바꾸세요.
 
 ## 라이선스
 
-MIT. `references/quick-rules.md`와 SKILL.md 일부는 [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai)(MIT)에서 가져왔습니다.
+MIT입니다. `references/quick-rules.md`와 SKILL.md 일부는 [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai)(MIT)에서 가져왔어요.
