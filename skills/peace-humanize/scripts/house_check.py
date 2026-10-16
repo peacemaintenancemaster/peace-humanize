@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""peace-humanize 하우스 룰 측정기. 표준 라이브러리만 쓴다.
+"""peace-humanize 자체 규칙 측정기. 표준 라이브러리만 쓴다.
 
 사용:
   python house_check.py 글.txt
@@ -9,7 +9,7 @@
   python house_check.py 글.txt --json       (기계용 출력)
 
 --level N  구어체 정도 목표(0=단정한 합쇼체 … 100=친근한 요체, 모두 존댓말). 주면 레벨별 종결 조건과
-           목표 구어체 정도(±15)를 함께 본다. 안 주면 하우스 룰(50 기준)로 잰다.
+           목표 구어체 정도(±15)를 함께 본다. 안 주면 자체 규칙(50 기준)으로 잰다.
 
 종결어미 분류, 구어체 정도 추정, 쉼표 탐지는 휴리스틱이라 오탐이 있을 수 있다.
 """
@@ -21,7 +21,7 @@ import statistics
 import sys
 from collections import Counter
 
-# ── 하우스 룰 어휘 ────────────────────────────────────────────
+# ── 자체 규칙 어휘 ────────────────────────────────────────────
 BANNED_WORDS = ["핵심", "다만", "단순히"]  # 0회. '및'은 단어 경계로 따로 센다
 LIMITED_WORDS = ["결국", "확인", "중요"]  # 1회까지
 
@@ -54,7 +54,7 @@ SOFT_PHRASES = {
     "serves-as 직역": r"(?:로서|으로서)?\s*기능(?:한다|합니다|해요|하고|하며)",
     "지시형 도입": r"상상해\s*(?:보세요|봐)",
 }
-# 하우스 룰 9장: 한자어를 피하려고 끌어온 어색한 고유어
+# 자체 규칙 9장: 한자어를 피하려고 끌어온 어색한 고유어
 NATIVE_STRONG = re.compile(
     r"알맹이|걷어내|걷어낸|덜어내|덜어낸|털어내|짚어\s*(?:보|봤|볼)|결이\s*다르|빚어내|빚어낸"
     r"|담아내|담아낸|풀어내|풀어낸|녹여내|녹여낸|엮어내|엮어낸")
@@ -262,7 +262,7 @@ def analyze(raw, level=None):
     rule_level = nearest_level(level) if level is not None else 50
     cfg = LEVELS[rule_level]
 
-    # 하우스 룰 2·3장
+    # 자체 규칙 2·3장
     banned = {w: text.count(w) for w in BANNED_WORDS}
     banned["및"] = count(r"(?<![가-힣])및(?![가-힣])", text)
     hit = {w: c for w, c in banned.items() if c}
@@ -279,7 +279,7 @@ def analyze(raw, level=None):
                 phrases.setdefault(group, []).append(m.group(0))
     checks.append(("AI 단골 표현", not phrases, phrases or 0, "0회"))
 
-    # 쉼표 (하우스 룰 1장 + KatFish)
+    # 쉼표 (자체 규칙 1장 + KatFish)
     comma_sents = sum(1 for s in sents if "," in s)
     ratio = comma_sents / n
     checks.append(("쉼표 있는 문장 비율", ratio <= 0.3, f"{ratio:.0%} ({comma_sents}/{len(sents)})", "30% 이하"))
@@ -290,7 +290,7 @@ def analyze(raw, level=None):
     conj = CONJ_COMMA.findall(text)
     checks.append(("문두 접속부사 뒤 쉼표", not conj, Counter(conj) and dict(Counter(conj)) or 0, "0회"))
 
-    # 어색한 고유어 (하우스 룰 9장)
+    # 어색한 고유어 (자체 규칙 9장)
     strong = NATIVE_STRONG.findall(text)
     checks.append(("어색한 고유어", not strong, strong or 0, "0회 (알맹이·걷어내다·짚어 보다 등)"))
     for hanja, pat in NATIVE_CONTEXT.items():
@@ -302,7 +302,7 @@ def analyze(raw, level=None):
     hon = [m.group(0) for m in OBJECT_HONORIFIC.finditer(text)]
     checks.append(("사물 존칭", not hon, hon or 0, "0회"))
 
-    # 종결어미 (하우스 룰 7장 / register-levels.md)
+    # 종결어미 (자체 규칙 7장 / register-levels.md)
     pool = raw_endings if cfg.get("sub") else endings
     counted = [e for e in pool if e != "명사형·기타"] or pool
     cdist = Counter(counted)
@@ -452,7 +452,7 @@ def fmt(v):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="peace-humanize 하우스 룰 측정기")
+    ap = argparse.ArgumentParser(description="peace-humanize 자체 규칙 측정기")
     ap.add_argument("file")
     ap.add_argument("--base", help="원문 파일. 주면 변경률과 숫자 보존을 함께 본다")
     ap.add_argument("--level", type=int, help="구어체 정도 목표 0~100")
