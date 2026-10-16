@@ -54,6 +54,20 @@ SOFT_PHRASES = {
     "serves-as 직역": r"(?:로서|으로서)?\s*기능(?:한다|합니다|해요|하고|하며)",
     "지시형 도입": r"상상해\s*(?:보세요|봐)",
 }
+# 하우스 룰 9장: 한자어를 피하려고 끌어온 어색한 고유어
+NATIVE_STRONG = re.compile(
+    r"알맹이|걷어내|걷어낸|덜어내|덜어낸|털어내|짚어\s*(?:보|봤|볼)|결이\s*다르|빚어내|빚어낸"
+    r"|담아내|담아낸|풀어내|풀어낸|녹여내|녹여낸|엮어내|엮어낸")
+NATIVE_CONTEXT = {
+    "설치": r"깔(?:려요|립니다|리면|면|아\s*주|았|고\s)",
+    "표시·출력": r"찍(?:혀요|힙니다|힌다|혀\s*나)",
+    "실행": r"돌려\s*(?:보|봐)|돌리면|돌려요|돌립니다",
+    "검사·확인": r"봐\s*(?:줘요|줍니다|드려요|드립니다)",
+    "가능": r"(?<=[가-힣])(?<![아어여해워와써봐줘가서려내타파떠껴쳐켜펴져돼])도\s*(?:돼요|됩니다)",
+    "작성": r"써\s*(?:줘요|줍니다|주고)",
+    "구분": r"가르는|가른다|갈라요",
+    "수정": r"손보(?:고|는|면|세요|기)|손봐|손봤",
+}
 NOMINALIZATION = re.compile(r"[가-힣]{2,}(?:적(?=인|으로|이다|\s)|화(?=하|되|를|가|의|에|\s))")
 TRIPLE_LIST = re.compile(
     r"[가-힣A-Za-z0-9]+(?:,\s*|·)[가-힣A-Za-z0-9]+(?:,\s*|·|,?\s*그리고\s+|\s*및\s*)[가-힣A-Za-z0-9]+")
@@ -264,6 +278,14 @@ def analyze(raw, level=None):
     conj = CONJ_COMMA.findall(text)
     checks.append(("문두 접속부사 뒤 쉼표", not conj, Counter(conj) and dict(Counter(conj)) or 0, "0회"))
 
+    # 어색한 고유어 (하우스 룰 9장)
+    strong = NATIVE_STRONG.findall(text)
+    checks.append(("어색한 고유어", not strong, strong or 0, "0회 (알맹이·걷어내다·짚어 보다 등)"))
+    for hanja, pat in NATIVE_CONTEXT.items():
+        found = [m.group(0) for m in re.finditer(pat, text)]
+        if found:
+            warnings.append(f"고유어 의심 → '{hanja}' 같은 한자어 검토: " + " / ".join(found[:3]))
+
     # 사물 존칭 (레벨 무관)
     hon = [m.group(0) for m in OBJECT_HONORIFIC.finditer(text)]
     checks.append(("사물 존칭", not hon, hon or 0, "0회"))
@@ -371,7 +393,7 @@ def analyze(raw, level=None):
         "checks": [{"item": c[0], "pass": c[1], "value": c[2], "rule": c[3]} for c in checks],
         "warnings": warnings,
         "fail_count": len(fails),
-        "verdict": "고친다" if len(fails) >= 2 else "손볼 게 거의 없다",
+        "verdict": "고친다" if len(fails) >= 2 else "수정할 부분이 거의 없다",
     }
 
 
