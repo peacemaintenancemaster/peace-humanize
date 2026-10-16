@@ -241,6 +241,38 @@ def nearest_level(n):
     return min(LEVELS, key=lambda k: abs(k - n))
 
 
+LINKERS = re.compile(r"^(?:그래서|그러니|그러니까|그런데|하지만|그러나|또|게다가|왜냐하면|예를 들어|이|그|이런|그런|이렇게|그렇게|이때|그때|이건|그건)(?![가-힣])")
+VERBISH = re.compile(r"(?:는|고|서|면|며|게|도록|니다|요|다|던|면서|지만|니까|려고|어|아|해|았|었|겠|ㄴ)$")
+REASON_END = re.compile(r"(?:니까요|거든요|때문입니다|때문이에요|때문이다|니까)[.!?]?$")
+
+
+def content_stems(sentence):
+    out = set()
+    for w in re.findall(r"[가-힣]{2,}", sentence):
+        for j in JOSA:
+            if w.endswith(j) and len(w) - len(j) >= 2:
+                w = w[: -len(j)]
+                break
+        if w in STOPWORDS or VERBISH.search(w):  # 용언은 빼고 명사 위주로 비교한다
+            continue
+        out.add(w[:2])  # 어미 변화를 흡수하려고 앞 두 글자로 비교한다
+    return out
+
+
+def topic_jumps(text):
+    """앞 문장과 겹치는 말도, 잇는 말도 없이 화제가 바뀌는 문장."""
+    jumps = []
+    for line in text.split("\n"):
+        ls = sentences(line)
+        for a, b in zip(ls, ls[1:]):
+            if content_stems(a) & content_stems(b):
+                continue
+            if LINKERS.search(b) or REASON_END.search(b.strip()):
+                continue
+            jumps.append(b)
+    return jumps
+
+
 def repeated_words(text):
     stems = Counter()
     for w in re.findall(r"[가-힣]{2,}", text):
@@ -408,6 +440,10 @@ def analyze(raw, level=None, editing=False):
     lone = [sn for sn, e in zip(sents, raw_endings) if e == "~는데요" and len(sn) < 20]
     if lone:
         warnings.append(f"짧은 단독 '~는데요.' 문장 {len(lone)}개: {lone[0]}")
+    jumps = topic_jumps(text)
+    if len(jumps) >= 2:
+        warnings.append(f"앞 문장과 이어지지 않고 화제가 바뀌는 문장 {len(jumps)}개: "
+                        + " / ".join(j[:20] for j in jumps[:3]) + " (한 문단 한 메시지인지 본다)")
     hook = TREND_HOOK.search(text)
     if hook:
         warnings.append(f"트렌드로 여는 문장: {hook.group(0)}")
