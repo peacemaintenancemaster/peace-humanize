@@ -137,7 +137,8 @@ def sentences(text):
     result = []
     for line in text.split("\n"):
         line = re.sub(r"(\d)\.(\d)", "\\1\u2027\\2", line)  # 소수점 보호
-        for m in re.finditer(r"[^.!?…]+(?:[.!?…]+[\"'”’)\]]*|$)", line):
+        # 문장부호 뒤에 공백이나 줄 끝이 올 때만 자른다(.com, .md, "?"라고 같은 경우 보호)
+        for m in re.finditer(r".+?(?:[.!?…]+[\"'”’)\]]*(?=\s|$)|$)", line):
             s = m.group(0).strip().replace("\u2027", ".")
             if re.search(r"[가-힣]", s):
                 result.append(s)
@@ -318,6 +319,19 @@ def analyze(raw, level=None):
 
     if not short:
         checks.append(("종결 유형 수", len(cdist) >= cfg["min_types"], len(cdist), f"{cfg['min_types']}가지 이상"))
+
+    # 합쇼체 호흡: "~니다"가 짧게 연달아 나오면 같은 끝소리가 빠르게 반복된다
+    hap = [(len(sn), e == "~합니다") for sn, e in zip(sents, endings)]
+    run_h = worst_h = 0
+    for ln, is_h in hap:
+        run_h = run_h + 1 if is_h and ln < 40 else 0
+        worst_h = max(worst_h, run_h)
+    if any(is_h for _, is_h in hap):
+        checks.append(("40자 미만 합쇼체 연속", worst_h < 3, f"최장 {worst_h}문장", "3연속 금지"))
+    hap_lens = [ln for ln, is_h in hap if is_h]
+    if rule_level == 0 and len(hap_lens) >= 4:
+        avg = statistics.mean(hap_lens)
+        checks.append(("합쇼체 평균 길이", avg >= 40, f"{avg:.0f}자", "40자 이상"))
 
     present = dist.get("현재형 ~한다", 0)
     if cfg["present_max"] is not None:
