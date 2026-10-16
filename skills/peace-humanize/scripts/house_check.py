@@ -161,7 +161,7 @@ def ending(s):
     if t.endswith("입니다"):
         return "~입니다"
     if t.endswith("니다"):
-        if t.endswith("습니다") and len(t) >= 4 and jong(t[-4]) == 20:
+        if t.endswith("습니다") and len(t) >= 4 and jong(t[-4]) == 20 and t[-4] not in "있겠":
             return "~했습니다(과거)"
         return "~합니다(현재)"
     if asks and t.endswith(("까요", "나요", "가요")):
@@ -192,7 +192,7 @@ def ending(s):
         j = jong(t[-2])
         if j == 4:
             return "현재형 ~한다"
-        if j == 20:
+        if j == 20 and t[-2] not in "있겠":  # 있다·하겠다는 과거가 아니다
             return "과거형 ~었다"
         return "평서 ~다(이다·있다 등)"
     if t.endswith(("음", "함", "임", "됨", "기")):
