@@ -47,15 +47,15 @@ Claude Code라면 `/peace-humanize 글...`로 직접 불러도 돼요.
 
 윤문이나 새로 쓰기를 시작하면 Claude가 구어체 정도를 묻습니다. Claude Code에서는 선택 카드가 뜹니다. 원문 톤에 가장 가까운 값이 추천으로 맨 위에 와요.
 
+세 구간 모두 존댓말이에요.
+
 | 구어체 정도 | 이런 글 | 문체 |
 |---|---|---|
-| 0 | 공문·보도자료·보고서 | 해라체나 합쇼체로 통일, 요체·감탄 없음 |
-| 30 | 칼럼·리포트·격식 뉴스레터 | 합쇼체 중심, 질문 한두 개 |
-| 50 | 블로그·카드뉴스 | 합니다체와 요체를 섞은 실측 리듬 |
-| 70 | 인스타 캡션·캐주얼 뉴스레터 | 요체 중심, ~거든요·~잖아요, 축약형 |
-| 100 | 반말 SNS | 반말, 감탄·도치, 존댓말 섞지 않음 |
+| 0 | 공지·보도자료·리포트 | 합쇼체 중심(~했습니다·~입니다) |
+| 50 | 블로그·카드뉴스 | 합쇼체와 요체를 섞은 실측 리듬 |
+| 100 | 인스타 캡션·캐주얼 뉴스레터 | 요체 중심, ~거든요·~잖아요, 축약형 |
 
-카드에 없는 숫자(예: 85)나 "원문 유지"는 Other에 적으면 돼요. 처음부터 "구어체 70으로 바꿔줘"처럼 말하면 묻지 않고 바로 작업하죠.
+카드에는 "원문 톤 유지"도 있습니다. 해라체 칼럼처럼 존댓말이 아닌 글은 이걸 고르면 문체는 그대로 두고 AI 티만 빼요. 25·75 같은 숫자는 Other에 적으면 되고요. 처음부터 "블로그 느낌으로 바꿔줘"처럼 말하면 묻지 않고 바로 작업하죠.
 
 ## 측정 스크립트만 따로 쓰기
 
@@ -66,7 +66,7 @@ python skills/peace-humanize/scripts/house_check.py 글.txt
 ```
 
 ```bash
-python skills/peace-humanize/scripts/house_check.py 고친글.txt --base 원문.txt --level 70
+python skills/peace-humanize/scripts/house_check.py 고친글.txt --base 원문.txt --level 100
 ```
 
 항목마다 PASS/FAIL이 나옵니다. 위반이 두 종류 이상이면 "고친다"로 판정해요. `--base`를 주면 변경률과 숫자 누락까지 봅니다. `--level`을 주면 그 구어체 정도 조건으로 재고요.
@@ -80,7 +80,7 @@ skills/peace-humanize/
 ├── SKILL.md                    작업 순서와 철칙
 ├── references/
 │   ├── house-rules.md          하우스 룰 (우선)
-│   ├── register-levels.md      구어체 정도 0~100 레벨 조건
+│   ├── register-levels.md      구어체 정도 0·50·100 조건
 │   ├── research-notes.md       한국어 연구로 더한 규칙과 출처
 │   └── quick-rules.md          im-not-ai AI 티 룰북
 └── scripts/

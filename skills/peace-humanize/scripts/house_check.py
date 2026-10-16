@@ -8,7 +8,7 @@
   python house_check.py - < 글.txt          (stdin)
   python house_check.py 글.txt --json       (기계용 출력)
 
---level N  구어체 정도 목표(0=공문 … 100=반말 구어). 주면 레벨별 종결 조건과
+--level N  구어체 정도 목표(0=단정한 합쇼체 … 100=친근한 요체, 모두 존댓말). 주면 레벨별 종결 조건과
            목표 구어체 정도(±15)를 함께 본다. 안 주면 하우스 룰(50 기준)로 잰다.
 
 종결어미 분류, 구어체 정도 추정, 쉼표 탐지는 휴리스틱이라 오탐이 있을 수 있다.
@@ -69,30 +69,30 @@ STOPWORDS = {"그리고", "하지만", "그런데", "이런", "그런", "저런"
 
 # ── 종결 유형 ───────────────────────────────────────────────
 FORMAL = {"현재형 ~한다", "과거형 ~었다", "평서 ~다(이다·있다 등)", "명사형"}
-HAPNIDA = {"~합니다"}
-YO = {"~어요", "~예요", "~는데요", "~고요", "~죠", "기타 요체"}
+HAPNIDA = {"~합니다"}  # 합쇼체 묶음 이름. 세부 유형은 HAPNIDA_SUB
+HAPNIDA_SUB = {"~했습니다(과거)", "~합니다(현재)", "~입니다", "~습니까"}
+YO = {"~어요", "~예요", "~는데요", "~고요", "~죠", "기타 요체", "요체 질문"}
 BANMAL = {"반말 ~어", "반말 ~지", "반말 ~거든·~잖아", "반말 ~더라·~네", "반말 ~는데", "감탄·반말 질문"}
-SCORE = {"~합니다": 30, "~어요": 60, "~예요": 60, "~고요": 60,
-         "~는데요": 70, "~죠": 70, "기타 요체": 70}
-for t in FORMAL:
-    SCORE[t] = 0
-for t in BANMAL:
-    SCORE[t] = 100
+NON_POLITE = (FORMAL - {"명사형"}) | BANMAL  # 해라체·반말. 명사형 항목은 세지 않는다
+
+# 구어체 정도는 존댓말 안에서만 잰다: 합쇼체 0, ~어요류 80, ~는데요·~죠류 100
+SCORE = {"~합니다": 0, "~어요": 80, "~예요": 80, "~고요": 80,
+         "~는데요": 100, "~죠": 100, "기타 요체": 100, "요체 질문": 80}
 
 # 기준점별 조건. 기준점 사이 숫자는 가장 가까운 기준점 조건을 쓴다.
+# sub=True면 합쇼체를 과거·현재·~입니다·~습니까로 나눠서 종결 배분을 잰다.
 LEVELS = {
-    0: dict(max_top=0.6, min_types=2, run3=False, present_max=None, markers_min=0,
-            share_rules=[("요체·반말·질문", YO | BANMAL, "max", 0.0)]),
-    30: dict(max_top=0.5, min_types=3, run3=True, present_max=3, markers_min=0,
-             share_rules=[("요체", YO, "max", 0.10), ("반말·감탄", BANMAL, "max", 0.10)]),
+    0: dict(sub=True, max_top=0.5, min_types=2, run3=False, present_max=None, markers_min=0,
+            share_rules=[("요체(질문 제외)", YO - {"요체 질문"}, "max", 0.10)]),
     50: dict(max_top=0.4, min_types=3, run3=True, present_max=3, markers_min=1,
              share_rules=[], eoyo_mono=True),
-    70: dict(max_top=0.4, min_types=4, run3=True, present_max=3, markers_min=2,
-             share_rules=[("요체", YO, "min", 0.5), ("합니다체", HAPNIDA, "max", 0.25),
-                          ("반말·감탄", BANMAL, "max", 0.10)]),
-    100: dict(max_top=0.5, min_types=3, run3=True, present_max=None, markers_min=0,
-              share_rules=[("반말", BANMAL, "min", 0.6), ("존댓말", YO | HAPNIDA, "max", 0.0)]),
+    100: dict(max_top=0.4, min_types=4, run3=True, present_max=None, markers_min=2,
+              share_rules=[("요체", YO, "min", 0.7), ("합쇼체", HAPNIDA, "max", 0.2)]),
 }
+
+
+def group_ending(e):
+    return "~합니다" if e in HAPNIDA_SUB else e
 
 
 def read(path):
@@ -141,8 +141,16 @@ def ending(s):
     t = re.sub(r"[\s\"'”’“‘)\]…~.!?,·]+$", "", s)
     if not t:
         return "명사형·기타"
-    if t.endswith(("니다", "니까")):
-        return "~합니다"
+    if t.endswith("니까"):
+        return "~습니까"
+    if t.endswith("입니다"):
+        return "~입니다"
+    if t.endswith("니다"):
+        if t.endswith("습니다") and len(t) >= 4 and jong(t[-4]) == 20:
+            return "~했습니다(과거)"
+        return "~합니다(현재)"
+    if asks and t.endswith(("까요", "나요", "가요")):
+        return "요체 질문"
     if t.endswith("데요"):
         return "~는데요"
     if t.endswith("고요"):
@@ -186,10 +194,14 @@ def count(pattern, text):
 
 
 def estimate_level(endings, text, n):
-    scored = [SCORE[e] for e in endings if e in SCORE]  # 제목 같은 명사형·기타 줄은 뺀다
-    if not scored:
+    """존댓말 문장만 점수를 매긴다. 존댓말이 절반 미만이면 'non-polite'를 돌려준다."""
+    polite = [SCORE[e] for e in endings if e in SCORE]
+    rude = [e for e in endings if e in NON_POLITE]
+    if not polite and not rude:
         return None
-    base = statistics.mean(scored)
+    if len(polite) < (len(polite) + len(rude)) / 2:
+        return "non-polite"
+    base = statistics.mean(polite)
     bump = min(10, 20 * len(COLLOQUIAL.findall(text)) / n)
     return round(min(100, base + bump))
 
@@ -214,7 +226,8 @@ def analyze(raw, level=None):
     text = clean(raw)
     sents = sentences(text)
     n = len(sents) or 1
-    endings = [ending(s) for s in sents]
+    raw_endings = [ending(s) for s in sents]
+    endings = [group_ending(e) for e in raw_endings]
     dist = Counter(endings)
     share = lambda types: sum(dist[t] for t in types) / n
     checks = []  # (항목, 통과여부, 값, 기준)
@@ -256,7 +269,8 @@ def analyze(raw, level=None):
     checks.append(("사물 존칭", not hon, hon or 0, "0회"))
 
     # 종결어미 (하우스 룰 7장 / register-levels.md)
-    counted = [e for e in endings if e != "명사형·기타"] or endings
+    pool = raw_endings if cfg.get("sub") else endings
+    counted = [e for e in pool if e != "명사형·기타"] or pool
     cdist = Counter(counted)
     cn = len(counted) or 1
     short = len(counted) < 4  # 문장이 너무 적으면 종결 배분은 재지 않는다
@@ -310,8 +324,11 @@ def analyze(raw, level=None):
         checks.append(("~어요/~예요 편중(존댓말 중)", mono < 0.7, f"{mono:.0%}", "70% 미만, 합니다체와 섞기"))
 
     est = estimate_level(endings, text, n)
-    if level is not None and est is not None:
-        checks.append(("구어체 정도", abs(est - level) <= 15, f"약 {est}", f"목표 {level} ±15"))
+    if level is not None:
+        rude = share(NON_POLITE)
+        checks.append(("존댓말 아닌 문장(해라체·반말)", rude <= 0.10, f"{rude:.0%}", "10% 이하"))
+        if isinstance(est, int):
+            checks.append(("구어체 정도", abs(est - level) <= 15, f"약 {est}", f"목표 {level} ±15"))
 
     # 경고 (WARN)
     lengths = [len(s) for s in sents]
@@ -346,7 +363,7 @@ def analyze(raw, level=None):
     fails = [c for c in checks if not c[1]]
     return {
         "sentences": len(sents),
-        "endings": dict(dist.most_common()),
+        "endings": dict(Counter(raw_endings).most_common()),
         "estimated_level": est,
         "target_level": level,
         "rule_level": rule_level,
@@ -405,7 +422,8 @@ def main():
         return
 
     est = report["estimated_level"]
-    head = f"문장 {report['sentences']}개 | 구어체 정도 추정 {est if est is not None else '-'}"
+    est_txt = "존댓말 아님(원문 톤 유지 권장)" if est == "non-polite" else (est if est is not None else "-")
+    head = f"문장 {report['sentences']}개 | 구어체 정도 추정 {est_txt}"
     if report["target_level"] is not None:
         head += f" | 목표 {report['target_level']} (기준점 {report['rule_level']} 조건 적용)"
     print(head)
