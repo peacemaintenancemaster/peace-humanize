@@ -204,6 +204,17 @@ def ending(s):
     return "명사형·기타"
 
 
+SOUND_ALIAS = {"아요": "어요", "워요": "어요", "와요": "어요", "해요": "어요", "여요": "어요",
+               "에요": "예요", "니까": "니다"}
+
+
+def end_sound(s):
+    """문장 끝 두 음절(소리 단위). 문장부호·따옴표는 뗀다."""
+    t = re.sub(r"[^가-힣]+$", "", s)
+    tail = t[-2:] if len(t) >= 2 else t
+    return SOUND_ALIAS.get(tail, tail) or None
+
+
 def count(pattern, text):
     return len(re.findall(pattern, text))
 
@@ -320,14 +331,20 @@ def analyze(raw, level=None):
     if not short:
         checks.append(("종결 유형 수", len(cdist) >= cfg["min_types"], len(cdist), f"{cfg['min_types']}가지 이상"))
 
-    # 합쇼체 호흡: "~니다"가 짧게 연달아 나오면 같은 끝소리가 빠르게 반복된다
+    # 끝소리 반복: 짧은 문장이 같은 끝 두 음절로 이어지면 같은 소리가 빠르게 반복된다
+    #   (~했습니다·~합니다·~입니다는 유형이 달라도 모두 "니다")
+    run_t = worst_t = 0
+    prev = worst_tail = None
+    for sn, e in zip(sents, endings):
+        tail = end_sound(sn) if e != "명사형·기타" and len(sn) < 40 else None
+        run_t = run_t + 1 if tail and tail == prev else (1 if tail else 0)
+        prev = tail
+        if run_t > worst_t:
+            worst_t, worst_tail = run_t, tail
+    if worst_t:
+        checks.append(("짧은 문장 끝소리 반복", worst_t < 3,
+                       f"최장 {worst_t}문장 (~{worst_tail})", "40자 미만, 같은 끝 두 음절 3연속 금지"))
     hap = [(len(sn), e == "~합니다") for sn, e in zip(sents, endings)]
-    run_h = worst_h = 0
-    for ln, is_h in hap:
-        run_h = run_h + 1 if is_h and ln < 40 else 0
-        worst_h = max(worst_h, run_h)
-    if any(is_h for _, is_h in hap):
-        checks.append(("40자 미만 합쇼체 연속", worst_h < 3, f"최장 {worst_h}문장", "3연속 금지"))
     hap_lens = [ln for ln, is_h in hap if is_h]
     if rule_level == 0 and len(hap_lens) >= 4:
         avg = statistics.mean(hap_lens)
